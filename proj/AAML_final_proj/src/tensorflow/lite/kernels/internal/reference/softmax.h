@@ -41,7 +41,7 @@ FixedPoint<tRawType, 0> exp_on_negative_values_cfu(
   // static constexpr int kFractionalBits = InputF::kFractionalBits;
 
   int32_t temp =
-      cfu_op0(0, InputF::kFractionalBits, static_cast<int32_t>(a.raw()));  // 把浮點數位數與資料傳遞給cfu
+      cfu_op0(0, InputF::kFractionalBits, a.raw());  // 把浮點數位數與資料傳遞給cfu
       
   return ResultF::FromRaw(temp);  // 返回結果
 }
