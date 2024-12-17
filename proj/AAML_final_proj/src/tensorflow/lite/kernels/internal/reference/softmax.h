@@ -26,25 +26,12 @@ limitations under the License.
 #include "tensorflow/lite/kernels/op_macros.h"
 
 #include "cfu.h"
+// #include "perf.h"
 
 using namespace gemmlowp;
 
 namespace tflite {
 namespace reference_ops {
-
-// Returns exp(x) for x < 0.
-template <typename tRawType, int tIntegerBits>
-FixedPoint<tRawType, 0> exp_on_negative_values_cfu(
-    FixedPoint<tRawType, tIntegerBits> a) {
-  typedef FixedPoint<tRawType, tIntegerBits> InputF;
-  typedef FixedPoint<tRawType, 0> ResultF;
-  // static constexpr int kFractionalBits = InputF::kFractionalBits;
-
-  int32_t temp =
-      cfu_op0(0, InputF::kFractionalBits, a.raw());  // 把浮點數位數與資料傳遞給cfu
-      
-  return ResultF::FromRaw(temp);  // 返回結果
-}
 
 inline void Softmax(const SoftmaxParams& params,
                     const RuntimeShape& input_shape, const float* input_data,
@@ -128,7 +115,7 @@ inline void Softmax(const SoftmaxParams& params,
         const FixedPointScaledDiff scaled_diff_f8 =
             FixedPointScaledDiff::FromRaw(input_diff_rescaled);
         sum_of_exps = sum_of_exps + gemmlowp::Rescale<kAccumulationIntegerBits>(
-                                        exp_on_negative_values_cfu(scaled_diff_f8));
+                                        exp_on_negative_values(scaled_diff_f8));
       }
     }
 
@@ -146,7 +133,7 @@ inline void Softmax(const SoftmaxParams& params,
         const FixedPointScaledDiff scaled_diff_f8 =
             FixedPointScaledDiff::FromRaw(input_diff_rescaled);
 
-        FixedPoint0 exp_in_0 = exp_on_negative_values_cfu(scaled_diff_f8);
+        FixedPoint0 exp_in_0 = exp_on_negative_values(scaled_diff_f8);
         int32_t unsat_output = gemmlowp::RoundingDivideByPOT(
             (shifted_scale * exp_in_0).raw(),
             num_bits_over_unit + 31 - (sizeof(OutputT) * 8));
