@@ -40,7 +40,7 @@ inline void FullyConnectedPerChannel(
     const int8_t* filter_data, const RuntimeShape& bias_shape,
     const int32_t* bias_data, const RuntimeShape& output_shape,
     int8_t* output_data) {
-  printf("-----------------------------1-------------------------------\n");
+  // printf("-----------------------------1-------------------------------\n");
   const int32_t input_offset = params.input_offset;
   const int32_t output_offset = params.output_offset;
   const int32_t output_activation_min = params.quantized_activation_min;
@@ -108,7 +108,7 @@ inline void FullyConnectedPerChannel(
     const int8_t* filter_data, const RuntimeShape& bias_shape,
     const AccumScalar* bias_data, const RuntimeShape& output_shape,
     int16_t* output_data) {
-  printf("-----------------------------2-------------------------------\n");
+  // printf("-----------------------------2-------------------------------\n");
 
   const int32_t output_activation_min = params.quantized_activation_min;
   const int32_t output_activation_max = params.quantized_activation_max;
@@ -148,14 +148,14 @@ inline void FullyConnected(
     const int8_t* filter_data, const RuntimeShape& bias_shape,
     const int32_t* bias_data, const RuntimeShape& output_shape,
     int8_t* output_data) {
-  printf("-----------------------------3-------------------------------\n");
+  // printf("-----------------------------3-------------------------------\n");
 
   const int32_t input_offset = params.input_offset;
   const int32_t filter_offset = params.weights_offset;
   const int32_t output_offset = params.output_offset;
-  printf("input_offset=%ld\n",input_offset);
-  printf("filter_offset=%ld\n",filter_offset);
-  printf("output_offset=%ld\n",output_offset);
+  // printf("input_offset=%ld\n",input_offset);
+  // printf("filter_offset=%ld\n",filter_offset);
+  // printf("output_offset=%ld\n",output_offset);
 
   const int32_t output_multiplier = params.output_multiplier;
   const int output_shift = params.output_shift;
@@ -171,7 +171,7 @@ inline void FullyConnected(
   const int output_depth = output_shape.Dims(output_dim_count - 1);
   TFLITE_DCHECK_LE(output_depth, filter_shape.Dims(filter_dim_count - 2));
   const int accum_depth = filter_shape.Dims(filter_dim_count - 1);
-  printf("accum_depth=%d\n",accum_depth);
+  // printf("accum_depth=%d\n",accum_depth);
 
   for (int b = 0; b < batches; ++b) {
     for (int out_c = 0; out_c < output_depth; ++out_c) {
@@ -221,7 +221,7 @@ inline void FullyConnectedWithPackedInt4Weights(
     const int8_t* filter_data, int8_t* unpacked_filter_data,
     const RuntimeShape& bias_shape, const int32_t* bias_data,
     const RuntimeShape& output_shape, int8_t* output_data) {
-  printf("-----------------------------4-------------------------------\n");
+  // printf("-----------------------------4-------------------------------\n");
 
   TFLITE_DCHECK_NE(unpacked_filter_data, nullptr);
   tflite::tensor_utils::UnpackDenseInt4IntoInt8(
@@ -238,7 +238,7 @@ inline void FullyConnected(
     const int8_t* filter_data, const RuntimeShape& bias_shape,
     const AccumScalar* bias_data, const RuntimeShape& output_shape,
     int16_t* output_data) {
-  printf("-----------------------------5-------------------------------\n");
+  // printf("-----------------------------5-------------------------------\n");
 
   const int32_t filter_offset = params.weights_offset;
   const int32_t output_multiplier = params.output_multiplier;

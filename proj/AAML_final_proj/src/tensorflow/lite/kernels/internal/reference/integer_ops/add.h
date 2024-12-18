@@ -78,7 +78,7 @@ inline void BroadcastBinaryFunction4DSlow(
           output_data[Offset(extended_output_shape, b, y, x, c)] = binary_func(
               input1_data[SubscriptToIndex(desc1, b, y, x, c)],
               input2_data[SubscriptToIndex(desc2, b, y, x, c)], params);
-	  printf("haha = %d\n",output_data[Offset(extended_output_shape, b, y, x, c)]);
+	  // printf("haha = %d\n",output_data[Offset(extended_output_shape, b, y, x, c)]);
         }
       }
     }

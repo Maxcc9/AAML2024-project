@@ -42,7 +42,7 @@ inline bool AveragePool(const PoolParams& params,
   TFLITE_DCHECK_EQ(input_shape.DimensionsCount(), 4);
   TFLITE_DCHECK_EQ(output_shape.DimensionsCount(), 4);
 
-  printf("-------------------------pololinh!!-----------------\n");
+  // printf("-------------------------pololinh!!-----------------\n");
   const int batches = MatchingDim(input_shape, 0, output_shape, 0);
   const int depth = MatchingDim(input_shape, 3, output_shape, 3);
   // const int input_height = input_shape.Dims(1);
