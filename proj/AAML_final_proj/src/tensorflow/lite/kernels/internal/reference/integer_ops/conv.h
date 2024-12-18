@@ -41,8 +41,8 @@ inline void ConvPerChannel(
   const int32_t input_offset = params.input_offset;  // r = s(q - Z)
   const int stride_width = params.stride_width;
   const int stride_height = params.stride_height;
-  const int dilation_width_factor = params.dilation_width_factor;
-  const int dilation_height_factor = params.dilation_height_factor;
+  // const int dilation_width_factor = params.dilation_width_factor;
+  // const int dilation_height_factor = params.dilation_height_factor;
   // const int pad_width = params.padding_values.width;
   // const int pad_height = params.padding_values.height;
   const int32_t output_offset = params.output_offset;
@@ -104,6 +104,7 @@ inline void ConvPerChannel(
   // printf("n = %d\n", num_patches);
   // printf("m = %d\n", output_depth);
   // printf("(m, k, n) = (%4d, %4d, %4d)\n", output_depth, k, num_patches);
+  // printf("output offset = %ld)\n", output_offset);
 
   // Build the kernel matrix.
   for (int out_channel = 0; out_channel < output_depth; ++out_channel) {
@@ -120,6 +121,13 @@ inline void ConvPerChannel(
     }
   }
 
+  // printf("stride_height = %d)\n", stride_height);
+  // printf("pad_top = %d)\n", pad_top);
+  // printf("stride_width = %d)\n", stride_width);
+  // printf("pad_left = %d)\n", pad_left);
+  // printf("output_activation_max = %ld)\n", output_activation_max);
+  // printf("output_activation_min = %ld)\n", output_activation_min);
+
   // Build the im2col matrix.
   int patch_index = 0;
   int im2col_index;
@@ -130,9 +138,9 @@ inline void ConvPerChannel(
       const int in_x_origin = (out_x * stride_width) - pad_left;
       im2col_index = 0;
       for (int filter_y = 0; filter_y < filter_height; ++filter_y) {
-        const int in_y = in_y_origin + dilation_height_factor * filter_y;
+        const int in_y = in_y_origin + filter_y;
         for (int filter_x = 0; filter_x < filter_width; ++filter_x) {
-          const int in_x = in_x_origin + dilation_width_factor * filter_x;
+          const int in_x = in_x_origin + filter_x;
           for (int in_channel = 0; in_channel < input_depth; ++in_channel) {
             int8_t input_val;
             if (in_y >= 0 && in_y < input_height && in_x >= 0 && in_x < input_width) 
@@ -160,7 +168,7 @@ inline void ConvPerChannel(
   // int tiling_num = sqrt_of_Cbuf < A_B_buf_max ? sqrt_of_Cbuf : A_B_buf_max;
   // tiling_num = tiling_num < A_matrix_need ? tiling_num : A_matrix_need;
   // tiling_num = tiling_num < B_matrix_need ? tiling_num : B_matrix_need;
-  int tiling_num = 4;
+  // int tiling_num = 4;
   // printf("buffer_row = %d\n", buffer_row);
   // printf("sqrt_of_Cbuf = %d\n", sqrt_of_Cbuf);
   // printf("A_B_buf_max = %d\n", A_B_buf_max);
@@ -171,8 +179,8 @@ inline void ConvPerChannel(
   int first_round_flag;
   int cnt_256;
 
-  for(int M_index = 0; M_index < output_depth; M_index = M_index+4*tiling_num) {
-    for(int N_index = 0; N_index < num_patches; N_index = N_index+4*tiling_num) {
+  for(int M_index = 0; M_index < output_depth; M_index = M_index+16) {
+    for(int N_index = 0; N_index < num_patches; N_index = N_index+16) {
       first_round_flag = (M_index_buf != M_index) ? 1 : 0;
       uint32_t combined_2 = ((uint32_t)(first_round_flag & 0x01) << 10) | ((uint32_t)k & 0x3FF);
       cfu_op0(/* funct7= */ 1, /* in0= */ input_offset, /* in1= */ combined_2); // reset C_matrix_buffer
@@ -180,9 +188,11 @@ inline void ConvPerChannel(
       if(N_index == 0 && M_index == 0)    cnt_256 = 256; // first time
       else                                cnt_256 = 0;
 
-      int out_channels_check;
-      int patches_check;
-      for(int tiling_round=0; tiling_round<tiling_num; tiling_round++) {
+      for(int tiling_round=0; tiling_round<4; tiling_round++) {
+        int out_channels_check = M_index + tiling_round*4;
+        int patches_check = N_index + tiling_round*4;
+        int out_channels_check_d_4 = out_channels_check/4;
+        int patches_check_d_4 = patches_check/4;
         if(M_index_buf != M_index) { // M has been changed to the next round, you should input the new M
           // for(int k_index = 0; k_index < k; k_index = k_index+1) {
           //   uint32_t in_0 = 0;
@@ -199,14 +209,14 @@ inline void ConvPerChannel(
           for(int k_index = 0; k_index < k; k_index = k_index+1) {
             uint32_t in_0 = 0;
             uint32_t in_1 = 0;
-            out_channels_check = M_index + tiling_round*4;
-            patches_check = N_index + tiling_round*4;
+            // out_channels_check = M_index + tiling_round*4;
+            // patches_check = N_index + tiling_round*4;
             int8_t kernel_values[4];
             int8_t im2col_values[4];
 
-            int8_t* kernel_ptr    = &kernel_matrix[out_channels_check / 4][4 * k_index];
+            int8_t* kernel_ptr    = &kernel_matrix[out_channels_check_d_4][4 * k_index];
             // int8_t* kernel_ptr_p3 = &kernel_matrix[out_channels_check / 4][4 * k_index + 3];
-            int8_t* im2col_ptr    = &im2col_matrix[patches_check / 4][4 * k_index];
+            int8_t* im2col_ptr    = &im2col_matrix[patches_check_d_4][4 * k_index];
             // int8_t* im2col_ptr_p3 = &im2col_matrix[patches_check / 4][4 * k_index + 3];
 
 
@@ -219,11 +229,11 @@ inline void ConvPerChannel(
                 kernel_values[j] =
                     (out_channels_check+j >= output_depth)
                         ? (int8_t)(-input_offset)
-                        : kernel_matrix[out_channels_check/4][4*k_index + j];
+                        : kernel_matrix[out_channels_check_d_4][4*k_index + j];
                 im2col_values[j] =
                     (patches_check+j >= num_patches)
                         ? (int8_t)(-input_offset)
-                        : im2col_matrix[patches_check/4][4*k_index + j];
+                        : im2col_matrix[patches_check_d_4][4*k_index + j];
               }
               // package data
               for (int j = 0; j < 4; ++j) {
@@ -279,14 +289,14 @@ inline void ConvPerChannel(
           for(int k_index = 0; k_index < k; k_index = k_index+2) {
             uint32_t in_0 = 0;
             uint32_t in_1 = 0;
-            out_channels_check = M_index + tiling_round*4;
-            patches_check = N_index + tiling_round*4;
+            // out_channels_check = M_index + tiling_round*4;
+            // patches_check = N_index + tiling_round*4;
             int8_t im2col_values_1[4];
             int8_t im2col_values_2[4];
 
-            int8_t* im2col_ptr_1    = &im2col_matrix[patches_check / 4][4 * k_index];
+            int8_t* im2col_ptr_1    = &im2col_matrix[patches_check_d_4][4 * k_index];
             // int8_t* im2col_ptr_1_p3 = &im2col_matrix[patches_check / 4][4 * k_index + 3];
-            int8_t* im2col_ptr_2    = &im2col_matrix[patches_check / 4][4 * (k_index+1)];
+            int8_t* im2col_ptr_2    = &im2col_matrix[patches_check_d_4][4 * (k_index+1)];
             // int8_t* im2col_ptr_2_p3 = &im2col_matrix[patches_check / 4][4 * (k_index+1) + 3];
 
 
@@ -392,8 +402,8 @@ inline void ConvPerChannel(
 
       if(N_index+16 == num_patches && M_index+16 == output_depth) {
         cnt_256 = 257;
-        for(int tiling_round=0; tiling_round<tiling_num*4; tiling_round=tiling_round+4) {
-          for(int i=0; i<4*tiling_num; i=i+1) {
+        for(int tiling_round=0; tiling_round<16; tiling_round=tiling_round+4) {
+          for(int i=0; i<16; i=i+1) {
             if(M_index+i < output_depth) {
               for(int j=0; j<4; j=j+1) {
 
