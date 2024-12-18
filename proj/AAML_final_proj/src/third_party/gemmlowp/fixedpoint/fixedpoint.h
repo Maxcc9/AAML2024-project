@@ -751,7 +751,7 @@ FixedPoint<tRawType, 0> exp_on_negative_values(
   typedef FixedPoint<tRawType, 0> ResultF;
 
   int32_t temp =
-      cfu_op0(0, InputF::kFractionalBits, a.raw());  // 把浮點數位數與資料傳遞給cfu
+      cfu_op0(8, InputF::kFractionalBits, a.raw());  // 把浮點數位數與資料傳遞給cfu
   
   return ResultF::FromRaw(temp);  // 返回結果
 /*  
@@ -852,7 +852,7 @@ FixedPoint<tRawType, 0> one_over_one_plus_x_for_x_in_0_1(
   typedef FixedPoint<tRawType, 0> F0;
 
   uint32_t temp =
-    cfu_op0(1, a.kFractionalBits, a.raw());  // 把浮點數位數與資料傳遞給cfu
+    cfu_op0(9, a.kFractionalBits, a.raw());  // 把浮點數位數與資料傳遞給cfu
   return F0::FromRaw(temp);  // 返回結果
 
   // typedef FixedPoint<tRawType, 2> F2;
