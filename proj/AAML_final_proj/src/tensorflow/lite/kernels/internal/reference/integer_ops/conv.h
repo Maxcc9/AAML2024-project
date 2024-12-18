@@ -94,9 +94,11 @@ inline void ConvPerChannel(
   TFLITE_DCHECK_LE(num_patches, max_patches);
   TFLITE_DCHECK_LE(output_depth, max_output_depth);
 
-  int8_t kernel_matrix[((max_output_depth-1)/4)+1][max_k*4] __attribute__((aligned(4)));;
+  int8_t kernel_matrix[((max_output_depth-1)/4)+1][max_k*4] __attribute__((aligned(4)));
   // int8_t im2col_matrix[max_k][max_patches];
-  int8_t im2col_matrix[((max_patches-1)/4)+1][max_k*4] __attribute__((aligned(4)));; // transpose
+  int8_t im2col_matrix[((max_patches-1)/4)+1][max_k*4] __attribute__((aligned(4))); // transpose
+
+  int32_t output_matrix[64][1024] __attribute__((aligned(4))); // transpose
 
   // printf("k = %d\n", k);
   // printf("n = %d\n", num_patches);
@@ -203,13 +205,12 @@ inline void ConvPerChannel(
             int8_t im2col_values[4];
 
             int8_t* kernel_ptr    = &kernel_matrix[out_channels_check / 4][4 * k_index];
-            int8_t* kernel_ptr_p3 = &kernel_matrix[out_channels_check / 4][4 * k_index + 3];
+            // int8_t* kernel_ptr_p3 = &kernel_matrix[out_channels_check / 4][4 * k_index + 3];
             int8_t* im2col_ptr    = &im2col_matrix[patches_check / 4][4 * k_index];
-            int8_t* im2col_ptr_p3 = &im2col_matrix[patches_check / 4][4 * k_index + 3];
+            // int8_t* im2col_ptr_p3 = &im2col_matrix[patches_check / 4][4 * k_index + 3];
 
 
-            if(out_channels_check+3 < output_depth && patches_check+3 < num_patches 
-                                                  && ((kernel_ptr+3 == kernel_ptr_p3) && (im2col_ptr+3 == im2col_ptr_p3))) {
+            if(out_channels_check+3 < output_depth && patches_check+3 < num_patches) {
               in_0 = *((uint32_t*)kernel_ptr);
               in_1 = *((uint32_t*)im2col_ptr);
             }
@@ -243,18 +244,19 @@ inline void ConvPerChannel(
                   input_M = (M_index)+(cnt_256/4)%16;
                   input_N = (N_index-16)+(cnt_256%4)+(cnt_256/64)*4;
               }
+              output_matrix[input_M][input_N] = cfu_out;
 
-              if (bias_data) {
-                cfu_out += bias_data[input_M];
-              }
-              cfu_out = MultiplyByQuantizedMultiplier(cfu_out, output_multiplier[input_M], output_shift[input_M]);
-              cfu_out += output_offset;
-              cfu_out = std::max(cfu_out, output_activation_min);
-              cfu_out = std::min(cfu_out, output_activation_max);
+              // if (bias_data) {
+              //   cfu_out += bias_data[input_M];
+              // }
+              // cfu_out = MultiplyByQuantizedMultiplier(cfu_out, output_multiplier[input_M], output_shift[input_M]);
+              // cfu_out += output_offset;
+              // cfu_out = std::max(cfu_out, output_activation_min);
+              // cfu_out = std::min(cfu_out, output_activation_max);
 
-              int out_y = input_N / output_width;
-              int out_x = input_N % output_width;
-              output_data[Offset(output_shape, 0, out_y, out_x, input_M)] = static_cast<int8_t>(cfu_out);
+              // int out_y = input_N / output_width;
+              // int out_x = input_N % output_width;
+              // output_data[Offset(output_shape, 0, out_y, out_x, input_M)] = static_cast<int8_t>(cfu_out);
 
             }
             cnt_256 = cnt_256==256 ? cnt_256 : cnt_256+1;
@@ -283,13 +285,12 @@ inline void ConvPerChannel(
             int8_t im2col_values_2[4];
 
             int8_t* im2col_ptr_1    = &im2col_matrix[patches_check / 4][4 * k_index];
-            int8_t* im2col_ptr_1_p3 = &im2col_matrix[patches_check / 4][4 * k_index + 3];
+            // int8_t* im2col_ptr_1_p3 = &im2col_matrix[patches_check / 4][4 * k_index + 3];
             int8_t* im2col_ptr_2    = &im2col_matrix[patches_check / 4][4 * (k_index+1)];
-            int8_t* im2col_ptr_2_p3 = &im2col_matrix[patches_check / 4][4 * (k_index+1) + 3];
+            // int8_t* im2col_ptr_2_p3 = &im2col_matrix[patches_check / 4][4 * (k_index+1) + 3];
 
 
-            if(!(k==27 && k_index==26) && out_channels_check+3 < output_depth && patches_check+3 < num_patches 
-                                                  && ((im2col_ptr_1+3 == im2col_ptr_1_p3) && (im2col_ptr_2+3 == im2col_ptr_2_p3))) {
+            if(!(k==27 && k_index==26) && out_channels_check+3 < output_depth && patches_check+3 < num_patches) {
               in_0 = *((uint32_t*)im2col_ptr_1);
               in_1 = *((uint32_t*)im2col_ptr_2);
             }
@@ -324,17 +325,19 @@ inline void ConvPerChannel(
                   input_N = (N_index-16)+(cnt_256%4)+(cnt_256/64)*4;
               }
 
-              if (bias_data) {
-                cfu_out += bias_data[input_M];
-              }
-              cfu_out = MultiplyByQuantizedMultiplier(cfu_out, output_multiplier[input_M], output_shift[input_M]);
-              cfu_out += output_offset;
-              cfu_out = std::max(cfu_out, output_activation_min);
-              cfu_out = std::min(cfu_out, output_activation_max);
+              output_matrix[input_M][input_N] = cfu_out;
 
-              int out_y = input_N / output_width;
-              int out_x = input_N % output_width;
-              output_data[Offset(output_shape, 0, out_y, out_x, input_M)] = static_cast<int8_t>(cfu_out);
+              // if (bias_data) {
+              //   cfu_out += bias_data[input_M];
+              // }
+              // cfu_out = MultiplyByQuantizedMultiplier(cfu_out, output_multiplier[input_M], output_shift[input_M]);
+              // cfu_out += output_offset;
+              // cfu_out = std::max(cfu_out, output_activation_min);
+              // cfu_out = std::min(cfu_out, output_activation_max);
+
+              // int out_y = input_N / output_width;
+              // int out_x = input_N % output_width;
+              // output_data[Offset(output_shape, 0, out_y, out_x, input_M)] = static_cast<int8_t>(cfu_out);
 
             }
             cnt_256 = cnt_256==256 ? cnt_256 : cnt_256+1;
@@ -355,17 +358,19 @@ inline void ConvPerChannel(
               input_N = (N_index-16)+(cnt_256%4)+(cnt_256/64)*4;
           }
 
-          if (bias_data) {
-            cfu_out += bias_data[input_M];
-          }
-          cfu_out = MultiplyByQuantizedMultiplier(cfu_out, output_multiplier[input_M], output_shift[input_M]);
-          cfu_out += output_offset;
-          cfu_out = std::max(cfu_out, output_activation_min);
-          cfu_out = std::min(cfu_out, output_activation_max);
+          output_matrix[input_M][input_N] = cfu_out;
 
-          int out_y = input_N / output_width;
-          int out_x = input_N % output_width;
-          output_data[Offset(output_shape, 0, out_y, out_x, input_M)] = static_cast<int8_t>(cfu_out);
+          // if (bias_data) {
+          //   cfu_out += bias_data[input_M];
+          // }
+          // cfu_out = MultiplyByQuantizedMultiplier(cfu_out, output_multiplier[input_M], output_shift[input_M]);
+          // cfu_out += output_offset;
+          // cfu_out = std::max(cfu_out, output_activation_min);
+          // cfu_out = std::min(cfu_out, output_activation_max);
+
+          // int out_y = input_N / output_width;
+          // int out_x = input_N % output_width;
+          // output_data[Offset(output_shape, 0, out_y, out_x, input_M)] = static_cast<int8_t>(cfu_out);
 
         }
         cnt_256 = cnt_256 + 1;
@@ -396,17 +401,18 @@ inline void ConvPerChannel(
 
                 if(M_index+i>=output_depth || N_index+j+tiling_round>=num_patches) continue;
                 if(N_index+j+tiling_round < num_patches) {
-                  if (bias_data) {
-                    cfu_out += bias_data[M_index+i];
-                  }
-                  cfu_out = MultiplyByQuantizedMultiplier(cfu_out, output_multiplier[M_index+i], output_shift[M_index+i]);
-                  cfu_out += output_offset;
-                  cfu_out = std::max(cfu_out, output_activation_min);
-                  cfu_out = std::min(cfu_out, output_activation_max);
+                  output_matrix[M_index+i][N_index+j+tiling_round] = cfu_out;
+                  // if (bias_data) {
+                  //   cfu_out += bias_data[M_index+i];
+                  // }
+                  // cfu_out = MultiplyByQuantizedMultiplier(cfu_out, output_multiplier[M_index+i], output_shift[M_index+i]);
+                  // cfu_out += output_offset;
+                  // cfu_out = std::max(cfu_out, output_activation_min);
+                  // cfu_out = std::min(cfu_out, output_activation_max);
 
-                  int out_y = (N_index+j+tiling_round) / output_width;
-                  int out_x = (N_index+j+tiling_round) % output_width;
-                  output_data[Offset(output_shape, 0, out_y, out_x, M_index+i)] = static_cast<int8_t>(cfu_out);
+                  // int out_y = (N_index+j+tiling_round) / output_width;
+                  // int out_x = (N_index+j+tiling_round) % output_width;
+                  // output_data[Offset(output_shape, 0, out_y, out_x, M_index+i)] = static_cast<int8_t>(cfu_out);
                 }
               }
             }
@@ -416,6 +422,24 @@ inline void ConvPerChannel(
       M_index_buf = M_index;
     }
   }
+  int32_t cfu_out;
+  for(int i=0; i<output_depth; i++) {
+    for(int j=0; j<num_patches; j++) {
+      cfu_out = output_matrix[i][j];
+      if (bias_data) {
+        cfu_out += bias_data[i];
+      }
+      cfu_out = MultiplyByQuantizedMultiplier(cfu_out, output_multiplier[i], output_shift[i]);
+      cfu_out += output_offset;
+      cfu_out = std::max(cfu_out, output_activation_min);
+      cfu_out = std::min(cfu_out, output_activation_max);
+
+      int out_y = j / output_width;
+      int out_x = j % output_width;
+      output_data[Offset(output_shape, 0, out_y, out_x, i)] = static_cast<int8_t>(cfu_out);
+    }
+  }
+
   // perf_disable_counter(6);
 }
 

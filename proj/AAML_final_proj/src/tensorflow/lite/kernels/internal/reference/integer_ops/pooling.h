@@ -180,26 +180,41 @@ inline bool AveragePool(const PoolParams& params,
             //     ,cfu_op0(12,cfu_op0(11,G13,G14),cfu_op0(11,G15,G16))));
             int32_t x1,x2,x3,x4,x5,x6,x7,x8,y1,y2,y3,y4,z1,z2;
             x1 = cfu_op0(11,G1,G2);
+            __asm volatile("NOP");
             x2 = cfu_op0(11,G3,G4);
+            __asm volatile("NOP");
             x3 = cfu_op0(11,G5,G6);
+            __asm volatile("NOP");
             x4 = cfu_op0(11,G7,G8);
+            __asm volatile("NOP");
             x5 = cfu_op0(11,G9,G10);
+            __asm volatile("NOP");
             x6 = cfu_op0(11,G11,G12);
+            __asm volatile("NOP");
             x7 = cfu_op0(11,G13,G14);
+            __asm volatile("NOP");
             x8 = cfu_op0(11,G15,G16);
+            __asm volatile("NOP");
               // acc += cfu_op0(12,static_cast<uint32_t>(cfu_op0(11,G1,G2)),static_cast<uint32_t>(cfu_op0(11,G3,G4)));
               // acc += cfu_op0(12,static_cast<uint32_t>(cfu_op0(11,G5,G6)),static_cast<uint32_t>(cfu_op0(11,G7,G8)));
               // acc += cfu_op0(12,static_cast<uint32_t>(cfu_op0(11,G9,G10)),static_cast<uint32_t>(cfu_op0(11,G11,G12)));
               // acc += cfu_op0(12,static_cast<uint32_t>(cfu_op0(11,G13,G14)),static_cast<uint32_t>(cfu_op0(11,G15,G16)));
             y1 = cfu_op0(12,static_cast<uint32_t>(x1),static_cast<uint32_t>(x2));
+            __asm volatile("NOP");
             y2 = cfu_op0(12,static_cast<uint32_t>(x3),static_cast<uint32_t>(x4));
+            __asm volatile("NOP");
             y3 = cfu_op0(12,static_cast<uint32_t>(x5),static_cast<uint32_t>(x6));
+            __asm volatile("NOP");
             y4 = cfu_op0(12,static_cast<uint32_t>(x7),static_cast<uint32_t>(x8));
+            __asm volatile("NOP");
 
             z1 = cfu_op0(12,static_cast<uint32_t>(y1),static_cast<uint32_t>(y2));
+            __asm volatile("NOP");
             z2 = cfu_op0(12,static_cast<uint32_t>(y3),static_cast<uint32_t>(y4));
+            __asm volatile("NOP");
 
             acc = cfu_op0(12,static_cast<uint32_t>(z1),static_cast<uint32_t>(z2));
+            __asm volatile("NOP");
 
             // acc = cfu_op0(12,static_cast<uint32_t>(x9),static_cast<uint32_t>(x10));
             // acc = cfu_op0(12,static_cast<uint32_t>(x11),static_cast<uint32_t>(x12));
