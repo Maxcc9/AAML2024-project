@@ -51,12 +51,29 @@ module Cfu (
     // assign prod_2 = ($signed(cmd_payload_inputs_0[23 : 16]))* $signed(cmd_payload_inputs_1[23 :16]);
     // assign prod_3 = ($signed(cmd_payload_inputs_0[31: 24]))* $signed(cmd_payload_inputs_1[31: 24]);
 
-    wire signed [31:0] sum_prods;
-    assign sum_prods = prod_0 + prod_1 + prod_2 + prod_3;
-    wire signed [31:0] add_sums;
-    assign add_sums = add_a + add_b + add_c + add_d;
+    reg signed [31:0] sum_prods;
+    always @(posedge clk) begin
+        sum_prods <= prod_0 + prod_1 + prod_2 + prod_3;
+    end
+     
+    reg signed [31:0] add_sums;
+    always @(posedge clk) begin
+        add_sums <= add_a + add_b + add_c + add_d;
+    end
 
+    reg signed [31:0] fun_12;
+    always @(posedge clk) begin
+        fun_12 <= $signed(cmd_payload_inputs_0)+$signed(cmd_payload_inputs_1);
+    end
     
+    reg out_flag;
+    always @(posedge clk) begin
+        if(cmd_valid && (cmd_valid && cmd_payload_function_id[9:3] == 10 || cmd_valid && cmd_payload_function_id[9:3] == 11 || cmd_valid && cmd_payload_function_id[9:3] == 12))
+            out_flag <= 1;
+        else
+            out_flag <= 0;
+    end
+
     reg [31:0] EXP_LOOKUP_TABLE [0:63];
 
     initial begin
@@ -906,12 +923,14 @@ module Cfu (
                 rsp_payload_outputs_0 <= EXP_LOOKUP_TABLE[(exp_index < exp_table_size) ? exp_index : exp_table_size - 1];
             else if(cmd_payload_function_id[9:3] == RECIP_in)
                 rsp_payload_outputs_0 <= RECIPROCAL_LOOKUP_TABLE[(recip_index < recip_table_size) ? recip_index : recip_table_size - 1];
-            else if(cmd_payload_function_id[9:3] == 10)
+        end
+        else if(out_flag) begin
+            if(fun_7 == 10)
                 rsp_payload_outputs_0 <= sum_prods;
-            else if(cmd_payload_function_id[9:3] == 11)
+            else if(fun_7 == 11)
                 rsp_payload_outputs_0 <= add_sums;    
-            else if(cmd_payload_function_id[9:3] == 12)
-                rsp_payload_outputs_0 <= $signed(cmd_payload_inputs_0)+$signed(cmd_payload_inputs_1);
+            else if(fun_7 == 12)
+                rsp_payload_outputs_0 <= fun_12;
         end
         else if(rsp_valid)
             rsp_payload_outputs_0 <= 0;
@@ -931,11 +950,12 @@ module Cfu (
             rsp_valid <= 0;
         else if(cmd_valid) begin
             if(cmd_payload_function_id[9:3] == 1 || cmd_payload_function_id[9:3] == 4 || cmd_payload_function_id[9:3] == 6
-            || cmd_payload_function_id[9:3] == EXP_in || cmd_payload_function_id[9:3] == RECIP_in
-            || cmd_payload_function_id[9:3] == 10 || cmd_payload_function_id[9:3] == 11 || cmd_payload_function_id[9:3] == 12)
+            || cmd_payload_function_id[9:3] == EXP_in || cmd_payload_function_id[9:3] == RECIP_in)
                 rsp_valid <= 1;
         end 
         else if((!busy_TPU_out) && busy_TPU_out_delay_1_cycle && fun_7 == 5)
+            rsp_valid <= 1;
+        else if((fun_7 == 10 || fun_7 == 11 || fun_7 == 12) && out_flag)
             rsp_valid <= 1;
         else if(rsp_valid)
             rsp_valid <= ~rsp_ready;
