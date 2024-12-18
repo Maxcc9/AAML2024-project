@@ -8,6 +8,11 @@ cmd_payload_function_id[9:3]:
 5 -> perform TPU
 6 -> TPU output
 7 -> reset_C_buf // delete
+8 -> softmax
+9 -> softmax
+10 -> sum_prods
+11 -> add_sums
+12 -> $signed(cmd_payload_inputs_0)+$signed(cmd_payload_inputs_1)
 */
 
 module Cfu (
@@ -23,6 +28,35 @@ module Cfu (
     input               reset,
     input               clk
 );
+
+    //////////////////////fullyconnect/////////////////////////
+
+    localparam InputOffset = $signed(9'd128);
+    // SIMD multiply step:
+    wire signed [15:0] prod_0, prod_1, prod_2, prod_3;
+    assign prod_0 = ($signed(cmd_payload_inputs_0[7 : 0]) + InputOffset)* $signed(cmd_payload_inputs_1[7 : 0]);
+    assign prod_1 = ($signed(cmd_payload_inputs_0[15 : 8]) + InputOffset)* $signed(cmd_payload_inputs_1[15 : 8]);
+    assign prod_2 = ($signed(cmd_payload_inputs_0[23 : 16]) + InputOffset)* $signed(cmd_payload_inputs_1[23 :16]);
+    assign prod_3 = ($signed(cmd_payload_inputs_0[31: 24]) + InputOffset)* $signed(cmd_payload_inputs_1[31: 24]);
+
+
+    wire signed [15:0] add_a, add_b, add_c, add_d;
+    assign add_a = ($signed(cmd_payload_inputs_0[7 : 0])) + $signed(cmd_payload_inputs_1[7 : 0]);
+    assign add_b = ($signed(cmd_payload_inputs_0[15 : 8])) + $signed(cmd_payload_inputs_1[15 : 8]);
+    assign add_c = ($signed(cmd_payload_inputs_0[23 : 16])) + $signed(cmd_payload_inputs_1[23 :16]);
+    assign add_d = ($signed(cmd_payload_inputs_0[31: 24])) + $signed(cmd_payload_inputs_1[31: 24]);
+
+    // assign prod_0 = ($signed(cmd_payload_inputs_0[7 : 0]))* $signed(cmd_payload_inputs_1[7 : 0]);
+    // assign prod_1 = ($signed(cmd_payload_inputs_0[15 : 8]))* $signed(cmd_payload_inputs_1[15 : 8]);
+    // assign prod_2 = ($signed(cmd_payload_inputs_0[23 : 16]))* $signed(cmd_payload_inputs_1[23 :16]);
+    // assign prod_3 = ($signed(cmd_payload_inputs_0[31: 24]))* $signed(cmd_payload_inputs_1[31: 24]);
+
+    wire signed [31:0] sum_prods;
+    assign sum_prods = prod_0 + prod_1 + prod_2 + prod_3;
+    wire signed [31:0] add_sums;
+    assign add_sums = add_a + add_b + add_c + add_d;
+
+    
     reg [31:0] EXP_LOOKUP_TABLE [0:63];
 
     initial begin
@@ -749,7 +783,7 @@ module Cfu (
         .rst_n      (1'b1),
         .ram_en     (1'b1),
         .wr_en      (C_wr_en),
-        .index      ((cmd_valid && cmd_payload_function_id[9:3] == 6) || fun_7 == 6 ? C_input_index : C_index),
+        .index      ((cmd_valid && (cmd_payload_function_id[9:3] == 6||cmd_payload_function_id[9:3] == 4)) || fun_7 == 6 || fun_7 == 4 ? C_input_index : C_index),
         .data_in    (C_data_in),
         .data_out   (C_data_out)
     );
@@ -761,9 +795,9 @@ module Cfu (
     always @(posedge clk) begin
         if(reset)
             cnt_output_index <= 0;
-        else if(cmd_valid && cmd_payload_function_id[9:3] == 1)
+        else if(cmd_valid && (cmd_payload_function_id[9:3] == 1 || cmd_payload_function_id[9:3] == 5))
             cnt_output_index <= 0;
-        else if(cmd_valid && cmd_payload_function_id[9:3] == 6)
+        else if(cmd_valid && (cmd_payload_function_id[9:3] == 6 || cmd_payload_function_id[9:3] == 4) && cnt_output_index!=255)
             cnt_output_index <= cnt_output_index + 1;
     end
     
@@ -866,12 +900,18 @@ module Cfu (
         else if(cmd_valid) begin
             if(cmd_payload_function_id[9:3] == 1) // reset
                 rsp_payload_outputs_0 <= 0;
-            else if(cmd_payload_function_id[9:3] == 6) // output C
+            else if(cmd_payload_function_id[9:3] == 6 || cmd_payload_function_id[9:3] == 4) // output C
                 rsp_payload_outputs_0 <= buf_C_out;
             else if(cmd_payload_function_id[9:3] == EXP_in)
                 rsp_payload_outputs_0 <= EXP_LOOKUP_TABLE[(exp_index < exp_table_size) ? exp_index : exp_table_size - 1];
             else if(cmd_payload_function_id[9:3] == RECIP_in)
                 rsp_payload_outputs_0 <= RECIPROCAL_LOOKUP_TABLE[(recip_index < recip_table_size) ? recip_index : recip_table_size - 1];
+            else if(cmd_payload_function_id[9:3] == 10)
+                rsp_payload_outputs_0 <= sum_prods;
+            else if(cmd_payload_function_id[9:3] == 11)
+                rsp_payload_outputs_0 <= add_sums;    
+            else if(cmd_payload_function_id[9:3] == 12)
+                rsp_payload_outputs_0 <= $signed(cmd_payload_inputs_0)+$signed(cmd_payload_inputs_1);
         end
         else if(rsp_valid)
             rsp_payload_outputs_0 <= 0;
@@ -891,7 +931,8 @@ module Cfu (
             rsp_valid <= 0;
         else if(cmd_valid) begin
             if(cmd_payload_function_id[9:3] == 1 || cmd_payload_function_id[9:3] == 4 || cmd_payload_function_id[9:3] == 6
-            || cmd_payload_function_id[9:3] == EXP_in || cmd_payload_function_id[9:3] == RECIP_in)
+            || cmd_payload_function_id[9:3] == EXP_in || cmd_payload_function_id[9:3] == RECIP_in
+            || cmd_payload_function_id[9:3] == 10 || cmd_payload_function_id[9:3] == 11 || cmd_payload_function_id[9:3] == 12)
                 rsp_valid <= 1;
         end 
         else if((!busy_TPU_out) && busy_TPU_out_delay_1_cycle && fun_7 == 5)
